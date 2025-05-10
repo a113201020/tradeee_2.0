@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title> 白圭投資小遊戲 </title>
+  <style>
+    body {
+      font-family: 'Microsoft JhengHei', sans-serif;
+      text-align: center;
+      background-color: #f0f0f0;
+      padding: 20px;
+    }
+
+    h1 {
+      background-color: #2f3e46;
+      color: white;
+      padding: 20px 0;
+      margin-bottom: 30px;
+    }
+
+    button {
+      width: 140px;
+      height: 40px;
+      margin: 5px;
+      font-size: 15px;
+      border-radius: 6px;
+      background-color: #2a9d8f;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    select {
+      font-size: 16px;
+      margin: 5px;
+      padding: 5px;
+    }
+
+    .card {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      width: 80%;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      white-space: pre-line;
+    }
+
+    #money, #debt, #turn {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>白圭投資小遊戲</h1>
+
+  <div id="money">目前資產：1000 錢</div>
+  <div id="debt">負債：0 錢</div>
+  <div id="turn">回合：1 / 20</div>
+  <div id="inventory" class="card">
+    <strong>📦 商品庫存：</strong>
+    <ul id="inventoryList"></ul>
+  </div>
+
+  <br>
+  <button onclick="showAdvice()">📈 投資建議</button>
+  <div id="adviceBox" class="card"></div>
+
+  <br><br>
+  <label for="regionSelect">選擇地區：</label>
+  <select id="regionSelect">
+    <option value="燕國">燕國</option>
+    <option value="趙國">趙國</option>
+    <option value="楚國">楚國</option>
+  </select>
+
+  <label for="productSelect">選擇商品：</label>
+  <select id="productSelect">
+    <option value="鹽">鹽</option>
+    <option value="木材">木材</option>
+    <option value="絲綢">絲綢</option>
+  </select>
+
+  <br><br>
+  <button onclick="buyProduct()">🛒 進貨</button>
+  <button onclick="sellProduct()">💼 出貨</button>
+
+  <div id="tradeResultBox" class="card"></div>
+
+  <br>
+  <button onclick="showMap()">🌍 地區貿易地圖</button>
+  <div id="mapBox" class="card"></div>
+
+  <div id="history" class="card">
+    <strong>📚 交易紀錄：</strong>
+    <ul id="historyList"></ul>
+  </div>
+
+  <script>
+    let totalMoney = 1000;
+    let debt = 0;
+    let turn = 1;
+    const maxTurns = 20;
+
+    const inventory = { "鹽": 0, "木材": 0, "絲綢": 0 };
+
+    const basePrices = {
+      "燕國": { "鹽": 300, "木材": 150, "絲綢": 100 },
+      "趙國": { "鹽": 200, "木材": 250, "絲綢": 100 },
+      "楚國": { "鹽": 150, "木材": 200, "絲綢": 500 }
+    };
+
+    const marketPrices = JSON.parse(JSON.stringify(basePrices));
+
+    function fluctuateMarket() {
+      for (let region in marketPrices) {
+        for (let product in marketPrices[region]) {
+          let npcImpact = Math.floor(Math.random() * 51 - 25);
+          marketPrices[region][product] += npcImpact;
+          marketPrices[region][product] = Math.max(20, marketPrices[region][product]);
+        }
+      }
+    }
+
+    function updateDisplay() {
+      document.getElementById("money").innerText = `目前資產：${totalMoney} 錢`;
+      document.getElementById("debt").innerText = `負債：${debt} 錢`;
+      document.getElementById("turn").innerText = `回合：${turn} / ${maxTurns}`;
+
+      const invList = document.getElementById("inventoryList");
+      invList.innerHTML = "";
+      for (let item in inventory) {
+        const li = document.createElement("li");
+        li.textContent = `${item}：${inventory[item]} 單位`;
+        invList.appendChild(li);
+      }
+    }
+
+    function showAdvice() {
+      const adviceList = [
+        "能市則市，無市則去。",
+        "商者，逐利也，然亦觀時而動。",
+        "知勢者富，察人者安。",
+        "貨悖而入者，亦悖而出。",
+        "因地制宜，擇人交易。"
+      ];
+      const advice = adviceList[Math.floor(Math.random() * adviceList.length)];
+      document.getElementById("adviceBox").innerText = "📜 白圭語錄：\n" + advice;
+    }
+
+    function logHistory(text) {
+      const list = document.getElementById("historyList");
+      const item = document.createElement("li");
+      item.textContent = text;
+      list.insertBefore(item, list.firstChild);
+    }
+
+    function randomEvent() {
+      const rand = Math.random();
+      let result = "";
+      if (rand < 0.15) {
+        result = "⚠️ 遇到假貨，無法賣出！";
+      } else if (rand < 0.3) {
+        totalMoney -= 50;
+        result = "🚫 地方稅突襲，損失 50 錢！";
+      } else if (rand < 0.4) {
+        debt += 100;
+        result = "💰 向當鋪借款 100 錢（未來需還 150）";
+        totalMoney += 100;
+      }
+      return result;
+    }
+
+    function buyProduct() {
+      const region = document.getElementById("regionSelect").value;
+      const product = document.getElementById("productSelect").value;
+      const cost = marketPrices[region][product];
+
+      if (totalMoney >= cost) {
+        totalMoney -= cost;
+        inventory[product]++;
+        logHistory(`🛒 在${region}購買${product}，花費 ${cost} 錢。`);
+      } else {
+        logHistory(`❌ 資金不足，無法購買${product}！`);
+      }
+
+      nextTurn();
+    }
+
+    function sellProduct() {
+      const region = document.getElementById("regionSelect").value;
+      const product = document.getElementById("productSelect").value;
+
+      if (inventory[product] <= 0) {
+        logHistory(`❌ 沒有庫存，無法賣出${product}！`);
+        return;
+      }
+
+      let output = "";
+      const price = marketPrices[region][product];
+      inventory[product]--;
+
+      const event = randomEvent();
+      if (event.includes("假貨")) {
+        output = event;
+      } else {
+        totalMoney += price;
+        output = `💰 在${region}賣出${product}，收入 ${price} 錢。`;
+        if (event) output += "\n" + event;
+      }
+
+      document.getElementById("tradeResultBox").innerText = output;
+      logHistory(output);
+
+      nextTurn();
+    }
+
+    function showMap() {
+      const mapInfo = "📍 地區需求模擬：\n- 燕國：缺鹽\n- 趙國：木材需求高\n- 楚國：絲綢盛行";
+      document.getElementById("mapBox").innerText = mapInfo;
+    }
+
+    function nextTurn() {
+      turn++;
+      fluctuateMarket();
+
+      if (turn > maxTurns) {
+        const penalty = Math.floor(debt * 1.5);
+        totalMoney -= penalty;
+        alert(`🎯 遊戲結束！你欠債 ${debt}，扣除還款 ${penalty} 錢。\n最終資產：${totalMoney} 錢`);
+      }
+
+      updateDisplay();
+    }
+
+    window.onload = () => {
+      updateDisplay();
+    };
+  </script>
+</body>
+</html>
